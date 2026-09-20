@@ -1,0 +1,26 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  tag: "6.7.1"
+  pullPolicy: IfNotPresent
+
+ui:
+  color: "#34577c"
+  message: "hello from dev"
+
+service:
+  port: 80
+
+ingress:
+  className: nginx
+  enabled: true
+  host: dev.146.190.204.88.sslip.io
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 128Mi
