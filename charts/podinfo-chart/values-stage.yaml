@@ -15,7 +15,6 @@ service:
 ingress:
   className: nginx
   enabled: true
-  host: stage.209.38.186.56.sslip.io
 
 resources:
   requests:

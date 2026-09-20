@@ -31,3 +31,43 @@ resource "helm_release" "ingress_nginx" {
     value = "lab-ingress"
   }
 }
+
+resource "helm_release" "argocd" {
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  version          = "10.9.2"
+  namespace        = "argocd"
+  create_namespace = true
+
+  wait    = true
+  timeout = 600
+}
+
+# Die Ingress-LB bekommt bei jedem Neuaufbau eine neue IP. Wir lesen sie hier
+# aus und leiten daraus die sslip.io-Hostnamen ab, statt IPs zu pflegen.
+data "kubernetes_service" "ingress_nginx" {
+  metadata {
+    name      = "ingress-nginx-controller"
+    namespace = "ingress-nginx"
+  }
+  depends_on = [helm_release.ingress_nginx]
+}
+
+locals {
+  lb_ip = data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].ip
+}
+
+resource "kubectl_manifest" "podinfo_dev" {
+  yaml_body = templatefile("${path.module}/../apps/dev.yaml.tftpl", {
+    host = "dev.${local.lb_ip}.sslip.io"
+  })
+  depends_on = [helm_release.argocd]
+}
+
+resource "kubectl_manifest" "podinfo_stage" {
+  yaml_body = templatefile("${path.module}/../apps/stage.yaml.tftpl", {
+    host = "stage.${local.lb_ip}.sslip.io"
+  })
+  depends_on = [helm_release.argocd]
+}

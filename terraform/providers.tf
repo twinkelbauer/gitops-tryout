@@ -16,6 +16,13 @@ provider "helm" {
   }
 }
 
+provider "kubectl" {
+  host                   = local.kubeconfig.host
+  token                  = local.kubeconfig.token
+  cluster_ca_certificate = base64decode(local.kubeconfig.cluster_ca_certificate)
+  load_config_file       = false
+}
+
 provider "digitalocean" {
   token = var.do_token
 }
