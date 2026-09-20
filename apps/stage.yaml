@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podinfo-stage
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/twinkelbauer/gitops-tryout.git
+    targetRevision: main
+    path: charts/podinfo-chart
+    helm:
+      valueFiles:
+        - values-stage.yaml
+      values: |
+        replicaCount: 2
+        ui:
+          color: "#34577c"
+          message: "hello from stage"
+        ingress:
+          host: stage.localhost
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: stage
+
+  syncPolicy:
+    automated:
+      prune: true        # löscht, was aus Git verschwindet
+      selfHeal: true     # dreht manuelle Änderungen am Cluster zurück
+    syncOptions:
+      - CreateNamespace=true
