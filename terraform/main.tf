@@ -48,6 +48,27 @@ resource "helm_release" "argocd" {
 
   wait    = true
   timeout = 600
+
+  # App-of-Apps: die Root-Application wird als extraObjects mit dem Chart
+  # ausgeliefert (statt über einen kubectl-Provider, der bei einem frischen
+  # Apply an den zur Plan-Zeit unbekannten Cluster-Credentials scheitert).
+  # Die eigentlichen Apps liegen als Helm-Templates in charts/apps/ im Repo;
+  # die LB-IP wird als Helm-Parameter durchgereicht, damit in Git keine IPs
+  # gepflegt werden.
+  values = [
+    yamlencode({
+      extraObjects = [
+        yamldecode(templatefile("${path.module}/../apps/root.yaml.tftpl", {
+          lb_ip = local.lb_ip
+        }))
+      ]
+    })
+  ]
+
+  # Die podinfo-Charts enthalten einen ServiceMonitor, dessen CRD erst mit
+  # kube-prometheus-stack in den Cluster kommt - ArgoCD darf also erst
+  # danach anfangen zu syncen.
+  depends_on = [helm_release.prometheus]
 }
 
 resource "helm_release" "prometheus" {
@@ -73,16 +94,4 @@ data "digitalocean_loadbalancer" "ingress" {
 
 locals {
   lb_ip = data.digitalocean_loadbalancer.ingress.ip
-}
-
-# App-of-Apps: Terraform legt nur die Root-Application an; die eigentlichen
-# Apps liegen als Helm-Templates in charts/apps/ im Git-Repo. Die LB-IP wird
-# als Helm-Parameter durchgereicht, damit in Git keine IPs gepflegt werden.
-# depends_on prometheus: die podinfo-Charts enthalten einen ServiceMonitor,
-# dessen CRD erst mit kube-prometheus-stack in den Cluster kommt.
-resource "kubectl_manifest" "root_app" {
-  yaml_body = templatefile("${path.module}/../apps/root.yaml.tftpl", {
-    lb_ip = local.lb_ip
-  })
-  depends_on = [helm_release.argocd, helm_release.prometheus]
 }
