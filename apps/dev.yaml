@@ -18,8 +18,6 @@ spec:
         ui:
           color: "#34577c"
           message: "hello from dev"
-        ingress:
-          host: dev.localhost
 
   destination:
     server: https://kubernetes.default.svc
