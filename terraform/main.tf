@@ -44,6 +44,18 @@ resource "helm_release" "argocd" {
   timeout = 600
 }
 
+resource "helm_release" "prometheus" {
+  name             = "monitoring"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  version          = "91.4.0"
+  namespace        = "monitoring"
+  create_namespace = true
+
+  wait    = true
+  timeout = 600
+}
+
 # Die Ingress-LB bekommt bei jedem Neuaufbau eine neue IP. Wir lesen sie hier
 # aus und leiten daraus die sslip.io-Hostnamen ab, statt IPs zu pflegen.
 data "kubernetes_service" "ingress_nginx" {
