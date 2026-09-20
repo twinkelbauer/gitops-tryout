@@ -10,3 +10,7 @@ output "dev_url" {
 output "stage_url" {
   value = "http://stage.${local.lb_ip}.sslip.io"
 }
+
+output "argocd_password_hint" {
+  value = "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+}

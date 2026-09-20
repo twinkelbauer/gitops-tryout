@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/twinkelbauer/gitops-tryout.git
+    targetRevision: main
+    path: charts/apps
+    helm:
+      parameters:
+        - name: lbIp
+          value: ${lb_ip}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true        # löscht Apps, die aus charts/apps/templates/ verschwinden
+      selfHeal: true

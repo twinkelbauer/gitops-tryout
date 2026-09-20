@@ -1,0 +1,4 @@
+apiVersion: v2
+name: apps
+description: App-of-Apps - rendert alle ArgoCD Applications dieses Clusters
+version: 0.1.0

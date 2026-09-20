@@ -1,0 +1,3 @@
+# Wird von Terraform über die Root-Application als Helm-Parameter gesetzt
+# (IP des Ingress-Loadbalancers, Basis für die sslip.io-Hostnamen).
+lbIp: ""

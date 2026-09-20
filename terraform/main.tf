@@ -1,7 +1,13 @@
+# Feste Version-Slugs (z.B. "1.36.3-do.5") werden von DO irgendwann zurückgezogen
+# und lassen dann jeden frischen Apply scheitern — daher dynamisch auflösen.
+data "digitalocean_kubernetes_versions" "current" {
+  version_prefix = "1.36."
+}
+
 resource "digitalocean_kubernetes_cluster" "lab" {
   name    = "lab"
   region  = "fra1"
-  version = "1.36.3-do.5"
+  version = data.digitalocean_kubernetes_versions.current.latest_version
 
   node_pool {
     name       = "worker"
@@ -56,30 +62,27 @@ resource "helm_release" "prometheus" {
   timeout = 600
 }
 
-# Die Ingress-LB bekommt bei jedem Neuaufbau eine neue IP. Wir lesen sie hier
-# aus und leiten daraus die sslip.io-Hostnamen ab, statt IPs zu pflegen.
-data "kubernetes_service" "ingress_nginx" {
-  metadata {
-    name      = "ingress-nginx-controller"
-    namespace = "ingress-nginx"
-  }
+# Die Ingress-LB bekommt bei jedem Neuaufbau eine neue IP. Wir lesen sie über
+# die DO-API (nicht über den kubernetes-Provider — der ist bei einem frischen
+# Apply zur Plan-Zeit noch nicht konfigurierbar). Helms wait=true garantiert,
+# dass der LB samt IP existiert, sobald ingress-nginx fertig installiert ist.
+data "digitalocean_loadbalancer" "ingress" {
+  name       = "lab-ingress"
   depends_on = [helm_release.ingress_nginx]
 }
 
 locals {
-  lb_ip = data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].ip
+  lb_ip = data.digitalocean_loadbalancer.ingress.ip
 }
 
-resource "kubectl_manifest" "podinfo_dev" {
-  yaml_body = templatefile("${path.module}/../apps/dev.yaml.tftpl", {
-    host = "dev.${local.lb_ip}.sslip.io"
+# App-of-Apps: Terraform legt nur die Root-Application an; die eigentlichen
+# Apps liegen als Helm-Templates in charts/apps/ im Git-Repo. Die LB-IP wird
+# als Helm-Parameter durchgereicht, damit in Git keine IPs gepflegt werden.
+# depends_on prometheus: die podinfo-Charts enthalten einen ServiceMonitor,
+# dessen CRD erst mit kube-prometheus-stack in den Cluster kommt.
+resource "kubectl_manifest" "root_app" {
+  yaml_body = templatefile("${path.module}/../apps/root.yaml.tftpl", {
+    lb_ip = local.lb_ip
   })
-  depends_on = [helm_release.argocd]
-}
-
-resource "kubectl_manifest" "podinfo_stage" {
-  yaml_body = templatefile("${path.module}/../apps/stage.yaml.tftpl", {
-    host = "stage.${local.lb_ip}.sslip.io"
-  })
-  depends_on = [helm_release.argocd]
+  depends_on = [helm_release.argocd, helm_release.prometheus]
 }

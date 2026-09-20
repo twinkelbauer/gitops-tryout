@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: podinfo-stage
+  name: podinfo-dev
   namespace: argocd
 spec:
   project: default
@@ -12,19 +12,19 @@ spec:
     path: charts/podinfo-chart
     helm:
       valueFiles:
-        - values-stage.yaml
+        - values-dev.yaml
       parameters:
         - name: ingress.host
-          value: ${host}
+          value: dev.{{ .Values.lbIp }}.sslip.io
       values: |
         replicaCount: 2
         ui:
           color: "#34577c"
-          message: "hello from stage"
+          message: "hello from dev"
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: stage
+    namespace: dev
 
   syncPolicy:
     automated:
